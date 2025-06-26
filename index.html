@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>臉部偵測</title>
+  <style>
+    body {
+      text-align: center;
+      background-color: #f0f0f0;
+      font-family: sans-serif;
+    }
+    video, canvas {
+      margin-top: 20px;
+      border: 2px solid #333;
+    }
+  </style>
+  <!-- 載入 face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+  <h1>臉部偵測</h1>
+  <p id="status">模型載入中，請稍候...</p>
+  <video id="video" width="640" height="480" autoplay muted></video>
+  <canvas id="overlay" width="640" height="480"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const ctx = overlay.getContext('2d');
+    const statusText = document.getElementById('status');
+
+    // 啟用攝影機
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        alert("無法開啟視訊：" + err.message);
+      });
+
+    // 載入模型（從正確 CDN 資料夾）
+    Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights')
+    ]).then(() => {
+      statusText.textContent = '模型已載入，請將臉部對準鏡頭';
+      startDetection();
+    });
+
+    function startDetection() {
+      video.addEventListener('play', () => {
+        const runDetection = async () => {
+          const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+          ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+          detections.forEach(d => {
+            const box = d.box;
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+          });
+
+          requestAnimationFrame(runDetection);
+        };
+        runDetection();
+      });
+    }
+  </script>
+</body>
+</html>
